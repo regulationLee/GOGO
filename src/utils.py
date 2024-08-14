@@ -45,7 +45,7 @@ def eval_stat(path, period=None):
 
     else:
         print('Data Statistic Evaluation')
-        result_file = f'data_distribution_from_202111_to_202407.csv'
+        result_file = f'data_distribution_from_202201_to_202407.csv'
         result_path = os.path.join(path, result_file)
 
         if os.path.exists(result_path):

@@ -77,20 +77,20 @@ def set_parameters():
     args.interval = int(args.interval_min / args.sample_minute)
     args.index_threshold = [0.1, 0.8] # abnormal ratio: counting abnormal frame in 36,000 frame
 
-    args.RAW_PATH = '../data/RAWDATA/'
-    args.SORT_PATH = '../data/SORTED/'
-    args.SAMPLE_PATH = '../data/SAMPLED/'
-    args.ACCIDENT_PATH = '../data/raw_accident/'
-    args.EDA_PATH = '../data/EDA/'
-    args.TRAIN_PATH = '../data/DATASET/'
+    # args.RAW_PATH = '../data/RAWDATA/'
+    # args.SORT_PATH = '../data/SORTED/'
+    # args.SAMPLE_PATH = '../data/SAMPLED/'
+    # args.ACCIDENT_PATH = '../data/raw_accident/'
+    # args.EDA_PATH = '../data/EDA/'
+    # args.TRAIN_PATH = '../data/DATASET/'
 
-    # # Ubuntu
-    # args.RAW_PATH = '/home/glee/sakak/data/GOGO/' + 'RAWDATA/'
-    # args.SORT_PATH = '/home/glee/sakak/data/GOGO/' + 'SORTED/'
-    # args.SAMPLE_PATH = '/home/glee/sakak/data/GOGO/' + 'SAMPLED/'
-    # args.ACCIDENT_PATH = '/home/glee/sakak/data/GOGO/' + 'raw_accident/'
-    # args.EDA_PATH = '/home/glee/sakak/data/GOGO/' + 'EDA/'
-    # args.TRAIN_PATH = '/home/glee/sakak/data/GOGO/' + 'DATASET/'
+    # Ubuntu
+    args.RAW_PATH = '/home/glee/sakak/data/GOGO/' + 'RAWDATA/'
+    args.SORT_PATH = '/home/glee/sakak/data/GOGO/' + 'SORTED/'
+    args.SAMPLE_PATH = '/home/glee/sakak/data/GOGO/' + 'SAMPLED/'
+    args.ACCIDENT_PATH = '/home/glee/sakak/data/GOGO/' + 'raw_accident/'
+    args.EDA_PATH = '/home/glee/sakak/data/GOGO/' + 'EDA/'
+    args.TRAIN_PATH = '/home/glee/sakak/data/GOGO/' + 'DATASET/'
 
     if not os.path.exists(args.SORT_PATH):
         os.mkdir(args.SORT_PATH)

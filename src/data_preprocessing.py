@@ -87,7 +87,7 @@ def sort_rawdata(args, file_path_list):
     # ### if single
     # # file_name_list = [os.path.basename(f) for f in files_raw if os.path.isfile(f)]
     # for file_path in tqdm(file_path_list):
-    #     file_path = os.path.join(args.RAW_PATH, 'tb_sensordata_20220608.csv')
+    #     # file_path = os.path.join(args.RAW_PATH, 'tb_sensordata_20220608.csv')
     #
     #     with open(file_path, 'rb') as f:
     #         binary_data = f.read()
@@ -112,8 +112,11 @@ def sort_rawdata(args, file_path_list):
     #     # df.columns = args.HEADER_LIST
     #     # df = pd.read_csv(file_path)
     #     df = df.dropna(subset=['cSenID'])
-    #     df['cSenDate'] = df['cSenDate'].apply(
-    #         lambda x: pd.to_datetime(x, format='%Y%m%d').strftime('%Y-%m-%d') if '-' not in str(x) else x)
+    #     file_date = file_path[-12:-4]
+    #     file_date = datetime.strptime(file_date, '%Y%m%d').strftime('%Y-%m-%d')
+    #     df['cSenDate'] = file_date
+    #     # df['cSenDate'] = df['cSenDate'].apply(
+    #     #     lambda x: pd.to_datetime(x, format='%Y%m%d').strftime('%Y-%m-%d') if '-' not in str(x) else x)
     #     df['cSenID'] = df['cSenID'].astype(int).astype(str).str[-8:].astype(int)
     #     # df['cSenID'] = df['cSenID'].astype(str).str[-8:].astype(int)
     #     unique_num_id = df['cSenID'].unique()
@@ -183,19 +186,17 @@ if __name__ == "__main__":
     args = set_parameters()
 
     # target_period = args.COLLECT_PERIOD[2]
-    target_index = ['202406', '202407']
-    period_list = [i for i in target_index]
-    print('Data Preprocessing for {}'.format(period_list))
+    # target_index = ['202406', '202407']
+    # period_list = [i for i in target_index]
+    print('Data Preprocessing')
 
     file_name_list = get_file_name_list(args)
 
-    sort_rawdata(args, file_name_list)
+    # sort_rawdata(args, file_name_list)
     eval_stat(args.SORT_PATH)
 
-    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_202111_to_202407.csv')
+    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_202201_to_202407.csv')
     active_user_list = tmp_df.iloc[:, 1:].sum()[tmp_df.iloc[:, 1:].sum() >= args.sample_period].index.tolist()
-
-
 
     # for target_period in period_list:
     #     print('Period: {}'.format(target_period))

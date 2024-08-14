@@ -141,86 +141,99 @@ if __name__ == "__main__":
     # '22023235', '22052407', '22052437'
     feat_score = {}
 
-    interpolated_score_df = pd.DataFrame()
-
     for user_id in tqdm(active_user_list):
         ##### Load dataframe and count #####
         print(f'User ID: {user_id}')
 
-        #### Evaluate Safety Score #####
-        for eda_feat in tgt_list:
-            if eda_feat == 'aggressive':
-                bins = np.arange(0.05, 3.05, 0.05)
-                tgt_bin = str(0.25)
-                threshold = [10.0, 40.0]
-            elif eda_feat == 'zigzag':
-                bins = np.arange(0.5, 20.5, 0.5)
-                tgt_bin = str(3.0)
-                threshold = [45.0, 55.0]
+        eda_feat = tgt_list[0]
+        if eda_feat == 'aggressive':
+            bins = np.arange(0.05, 3.05, 0.05)
+        elif eda_feat == 'zigzag':
+            bins = np.arange(0.5, 20.5, 0.5)
 
-            score_idx_file = f'{eda_feat}_safety_score_{user_id}.csv'
-            score_idx_path = os.path.join(args.SORT_PATH, str(user_id), score_idx_file)
+        result_path = os.path.join(args.EDA_PATH, f"{eda_feat}")
+        os.makedirs(result_path, exist_ok=True)
 
-            cnt_file_name = f'{eda_feat}_bin_ratio_{user_id}.csv'
-            cnt_file_path = os.path.join(args.SORT_PATH, str(user_id), cnt_file_name)
-            cnt_df = pd.read_csv(cnt_file_path)
-            cnt_df.set_index(cnt_df.columns[0], inplace=True)
+        tgt_file_name = f"{eda_feat}{user_id}_.csv"
+        # tgt_file_path = os.path.join(args.SAMPLE_PATH, str(user_id), tgt_file_name)
+        tgt_file_path = os.path.join(args.SORT_PATH, str(user_id), tgt_file_name)
 
-            score_df = cnt_df.rolling(window=args.update_decay, min_periods=1).mean()
-            if not os.path.exists(score_idx_path):
-                score_df.to_csv(score_idx_path)
+        result_file_name = f'{eda_feat}_bin_ratio_{user_id}.csv'
+        # result_file_path = os.path.join(args.SAMPLE_PATH, str(user_id), result_file_name)
+        result_file_path = os.path.join(args.SORT_PATH, str(user_id), result_file_name)
 
-            if eda_feat == 'aggressive':
-                tmp_agg_score = score_df[tgt_bin].apply(lambda x: safety_interpolation(threshold, x))
-                # aggressive_df = pd.concat([aggressive_df, tmp_agg_score], axis=0)
-            elif eda_feat == 'zigzag':
-                tmp_zig_score = score_df[tgt_bin].apply(lambda x: safety_interpolation(threshold, x))
-                # zigzag_df = pd.concat([zigzag_df, tmp_zig_score], axis=0)
+        # if not os.path.exists(tgt_file_path):
+        print(f'[{eda_feat}] Load DataFrame')
+        load_acc_dataframe(args, eda_feat, user_id)
 
-        if len(tmp_agg_score) == len(tmp_zig_score):
-            tmp_int_score = pd.DataFrame({'aggressive': tmp_agg_score, 'zigzag': tmp_zig_score})
+        if os.path.exists(result_file_path):
+            cnt_df = pd.read_csv(result_file_path)
         else:
-            if len(tmp_agg_score) == 0 or len(tmp_zig_score) == 0:
-                pass
-            else:
-                diff_num = abs(len(tmp_agg_score) - len(tmp_zig_score))
-                if len(tmp_agg_score) > len(tmp_zig_score):
-                    last_value = tmp_zig_score.iloc[-1]
-                    add_value = pd.Series([last_value] * diff_num)
-                    tmp_zig_score = pd.concat([tmp_zig_score, add_value], ignore_index=False)
-                    tmp_zig_score.index = tmp_agg_score.index
-                else:
-                    last_value = tmp_agg_score.iloc[-1]
-                    add_value = pd.Series([last_value] * diff_num)
-                    tmp_agg_score = pd.concat([tmp_agg_score, add_value], ignore_index=False)
-                    tmp_agg_score.index = tmp_zig_score.index
-                tmp_int_score = pd.DataFrame({'aggressive': tmp_agg_score, 'zigzag': tmp_zig_score})
+            tmp_df = pd.read_csv(tgt_file_path)
+            cnt_df = pd.DataFrame(columns=bins)
 
-        interpolated_score_df = pd.concat([interpolated_score_df, tmp_int_score], axis=0)
+            num_batches = len(tmp_df) // args.sample_period
 
-    interpolated_score_df['final_score'] = (
-            interpolated_score_df['aggressive'] * tgt_ratio + interpolated_score_df['zigzag'] * (1 - tgt_ratio))
+            for i in range(num_batches):
+                start_idx = i * args.sample_period
+                end_idx = (i + 1) * args.sample_period
+                batch_df = tmp_df.iloc[start_idx:end_idx]
 
-    sort_result = interpolated_score_df.sort_values(by='final_score', ascending=False)
+                for b in bins:
+                    tmp_name = f'{user_id}_{i}'
+                    cnt_df.at[tmp_name, b] = round(100 * ((batch_df[eda_feat] > b).sum() / len(batch_df)), 2)
 
-    plt.figure(figsize=(10,6))
-    plt.plot(sort_result['final_score'], marker='o')
-    plt.grid(True)
-    plt.show()
+                if len(batch_df) < args.sample_period:
+                    continue
+
+                counts, bin_edges = np.histogram(batch_df[eda_feat], bins=300)
+                cut_off = 100
+
+                filtered_counts = counts[counts > cut_off]
+                filtered_bin_edges = bin_edges[:-1][counts > cut_off]
+
+            pd.DataFrame(cnt_df).to_csv(result_file_path)
+
+        # #### Evaluate Safety Score #####
+        # for eda_feat in tgt_list:
+        #     if eda_feat == 'aggressive':
+        #         bins = np.arange(0.05, 3.05, 0.05)
+        #         tgt_bin = str(0.25)
+        #         threshold = [10.0, 40.0]
+        #     elif eda_feat == 'zigzag':
+        #         bins = np.arange(0.5, 20.5, 0.5)
+        #         tgt_bin = str(3.0)
+        #         threshold = [45.0, 55.0]
+        #
+        #     score_idx_file = f'{eda_feat}_safety_score_{user_id}.csv'
+        #     score_idx_path = os.path.join(args.SORT_PATH, str(user_id), score_idx_file)
+        #
+        #     cnt_file_name = f'{eda_feat}_bin_ratio_{user_id}.csv'
+        #     cnt_file_path = os.path.join(args.SORT_PATH, str(user_id), cnt_file_name)
+        #     cnt_df = pd.read_csv(cnt_file_path)
+        #     cnt_df.set_index(cnt_df.columns[0], inplace=True)
+        #
+        #     score_df = cnt_df.rolling(window=args.update_decay, min_periods=1).mean()
+        #     if not os.path.exists(score_idx_path):
+        #         score_df.to_csv(score_idx_path)
 
 
-                # if len(score_df) <= tgt_time:
-                #     specific_score = score_df.iloc[-1]
-                # else:
-                #     specific_score = score_df.iloc[tgt_time]
-                #
-                # specific_score = specific_score[tgt_bin]
-                # specific_score = safety_interpolation(threshold, specific_score)
-                #
-                # if eda_feat == 'aggressive':
-                #     feat_score['aggressive'] = specific_score
-                # elif eda_feat == 'zigzag':
-                #     feat_score['zigzag'] = specific_score
+
+
+
+        #
+        #         if len(score_df) <= tgt_time:
+        #             specific_score = score_df.iloc[-1]
+        #         else:
+        #             specific_score = score_df.iloc[tgt_time]
+        #
+        #         specific_score = specific_score[tgt_bin]
+        #         specific_score = safety_interpolation(threshold, specific_score)
+        #
+        #         if eda_feat == 'aggressive':
+        #             feat_score['aggressive'] = specific_score
+        #         elif eda_feat == 'zigzag':
+        #             feat_score['zigzag'] = specific_score
         #
         # final_score = feat_score['aggressive'] * tgt_ratio + feat_score['zigzag'] * (1 - tgt_ratio)
         #

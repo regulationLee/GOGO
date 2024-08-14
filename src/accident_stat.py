@@ -157,7 +157,7 @@ def load_dataframe(args, eda_feat, tgt_user):
     dir_list = sorted([d for d in os.listdir(args.SORT_PATH) if
                        d in tgt_user and os.path.isdir(os.path.join(args.SORT_PATH, d))])
 
-    combined_dfs = Parallel(n_jobs=-1)(delayed(process_directory)(dir_name) for dir_name in dir_list)
+    combined_dfs = Parallel(n_jobs=-1)(delayed(process_directory)(dir_name) for dir_name in tqdm(dir_list))
 
     return pd.concat(combined_dfs, ignore_index=True)
 
@@ -168,8 +168,8 @@ if __name__ == "__main__":
     # tgt_list = ['cSenAccX', HEADER_LIST[5], HEADER_LIST[10], 'aggressive', 'zigzag']
     tgt_list = ['aggressive', 'zigzag']
 
-    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_202110_to_202212.csv')
-    user_group_list = tmp_df.iloc[:, 1:].sum()[tmp_df.iloc[:, 1:].sum() >= args.sample_period].index.tolist()
+    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_202201_to_202407.csv')
+    user_list = [tmp_df.iloc[:, 1:].sum()[tmp_df.iloc[:, 1:].sum() >= args.sample_period].index.tolist()]
 
     # user_group_list = [args.accidents, args.non_accidents]
 
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         result_path = os.path.join(args.EDA_PATH, f"{eda_feat}")
         os.makedirs(result_path, exist_ok=True)
 
-        for tgt_user in user_group_list:
+        for tgt_user in user_list:
             print(f"Load dataframe for {eda_feat}")
             load_dataframe(args, eda_feat, tgt_user)
 
@@ -225,17 +225,17 @@ if __name__ == "__main__":
                     accumulated_bin_edges.append(bin_edges)
                     accumulated_bin_count.append(counts)
 
-                    plt.figure(figsize=(8, 6))
-                    plt.bar(filtered_bin_edges, filtered_counts, width=np.diff(bin_edges)[0], edgecolor='black',
-                            align='edge')
-                    plt.title(f'{eda_feat} {user_id} Batch {i}')
-                    plt.xlabel('Value')
-                    plt.ylabel('Frequency')
-                    plt.grid(True)
-
-                    histogram_file_path = f'{eda_feat}_{user_id}_batch_{i}.png'
-                    plt.savefig(os.path.join(result_path, histogram_file_path))
-                    plt.close()
+                    # plt.figure(figsize=(8, 6))
+                    # plt.bar(filtered_bin_edges, filtered_counts, width=np.diff(bin_edges)[0], edgecolor='black',
+                    #         align='edge')
+                    # plt.title(f'{eda_feat} {user_id} Batch {i}')
+                    # plt.xlabel('Value')
+                    # plt.ylabel('Frequency')
+                    # plt.grid(True)
+                    #
+                    # histogram_file_path = f'{eda_feat}_{user_id}_batch_{i}.png'
+                    # plt.savefig(os.path.join(result_path, histogram_file_path))
+                    # plt.close()
 
                 preset_bin_ratio_file = os.path.join(args.SORT_PATH, str(user_id), result_file_name)
                 pd.DataFrame(result_df).to_csv(preset_bin_ratio_file)
@@ -260,8 +260,7 @@ if __name__ == "__main__":
         total_score_name = f'{eda_feat}_safety_score.csv'
         total_score_path = os.path.join(args.EDA_PATH, eda_feat, total_score_name)
 
-        for tgt_user in user_group_list:
-
+        for tgt_user in user_list:
             for user_id in tgt_user:
                 score_idx_file = f'{eda_feat}_safety_score_{user_id}.csv'
                 score_idx_path = os.path.join(args.SORT_PATH, str(user_id), score_idx_file)
@@ -300,8 +299,7 @@ if __name__ == "__main__":
         specific_score_name = f'{eda_feat}_safety_score_at_{tgt_time}.csv'
         specific_score_path = os.path.join(args.EDA_PATH, eda_feat, specific_score_name)
 
-        for tgt_user in user_group_list:
-
+        for tgt_user in user_list:
             for user_id in tgt_user:
                 score_idx_file = f'{eda_feat}_safety_score_{user_id}.csv'
                 score_idx_path = os.path.join(args.SORT_PATH, str(user_id), score_idx_file)
@@ -321,49 +319,49 @@ if __name__ == "__main__":
     final_score_path = os.path.join(args.EDA_PATH, final_score_name)
     pd.DataFrame(final_score).to_csv(final_score_path)
 
-    #### Test code #####
-    final_score_name = f'final_safety_score_at_4.csv'
-    final_score_path = os.path.join(args.EDA_PATH, final_score_name)
-    tmp_df = pd.read_csv(final_score_path)
-    tmp_df = tmp_df.T
-    # tmp_df.set_index(tmp_df.columns[0], inplace=True)
-    T_score_name = f'T_safety_score_at_4.csv'
-    tmp_df.to_csv(os.path.join(args.EDA_PATH, T_score_name))
-
-    ##### Score Tuning #####
-    def safety_interpolation(thre, val):
-        def value_interpolation(value):
-            if value <= thre[0]:
-                return 100
-            elif value >= thre[1]:
-                return 50
-            else:
-                # Linear interpolation between 0.1 (100) and 0.3 (70)
-                # return 100 - ((value - thre[0]) / (thre[1] - thre[0])) * (100 - 50)
-
-                normalized_value = (value - thre[0]) / (thre[1] - thre[0])
-                # Adjust the exponent to control the rate of decay
-                exponent = 5
-                # nonlinear_interpolation = 50 + (100 - 50) * np.exp(-exponent * normalized_value)
-                nonlinear_interpolation = 50 + (100 - 50) * (1 - np.exp(-exponent * (1 - normalized_value)))
-                return nonlinear_interpolation
-
-        if isinstance(val, pd.Series):
-            result = val.apply(value_interpolation)
-        else:
-            result = value_interpolation(val)
-        return result
-
-    T_score_name = f'T_safety_score_at_4.csv'
-    tmp_df2 = pd.read_csv(os.path.join(args.EDA_PATH, T_score_name))
-
-    threshold = [10.0, 40.0]
-    tmp_df2['agg_inter'] = safety_interpolation(threshold, tmp_df2['aggressive'])
-    threshold = [45.0, 55.0]
-    tmp_df2['zig_inter'] = safety_interpolation(threshold, tmp_df2['zigzag'])
-    tmp_df2['sum'] = tmp_df2['agg_inter'] + tmp_df2['zig_inter']
-    ratios = np.arange(0.05, 1.00, 0.05)
-    for ratio in ratios:
-        new_column_name = f'sum_{ratio:.2f}_{1-ratio:.2f}'
-        tmp_df2[new_column_name] = tmp_df2['agg_inter'] * ratio + tmp_df2['zig_inter'] * (1 - ratio)
-    tmp_df2.to_csv(os.path.join(args.EDA_PATH, T_score_name), index=False)
+    # #### Test code #####
+    # final_score_name = f'final_safety_score_at_4.csv'
+    # final_score_path = os.path.join(args.EDA_PATH, final_score_name)
+    # tmp_df = pd.read_csv(final_score_path)
+    # tmp_df = tmp_df.T
+    # # tmp_df.set_index(tmp_df.columns[0], inplace=True)
+    # T_score_name = f'T_safety_score_at_4.csv'
+    # tmp_df.to_csv(os.path.join(args.EDA_PATH, T_score_name))
+    #
+    # ##### Score Tuning #####
+    # def safety_interpolation(thre, val):
+    #     def value_interpolation(value):
+    #         if value <= thre[0]:
+    #             return 100
+    #         elif value >= thre[1]:
+    #             return 50
+    #         else:
+    #             # Linear interpolation between 0.1 (100) and 0.3 (70)
+    #             # return 100 - ((value - thre[0]) / (thre[1] - thre[0])) * (100 - 50)
+    #
+    #             normalized_value = (value - thre[0]) / (thre[1] - thre[0])
+    #             # Adjust the exponent to control the rate of decay
+    #             exponent = 5
+    #             # nonlinear_interpolation = 50 + (100 - 50) * np.exp(-exponent * normalized_value)
+    #             nonlinear_interpolation = 50 + (100 - 50) * (1 - np.exp(-exponent * (1 - normalized_value)))
+    #             return nonlinear_interpolation
+    #
+    #     if isinstance(val, pd.Series):
+    #         result = val.apply(value_interpolation)
+    #     else:
+    #         result = value_interpolation(val)
+    #     return result
+    #
+    # T_score_name = f'T_safety_score_at_4.csv'
+    # tmp_df2 = pd.read_csv(os.path.join(args.EDA_PATH, T_score_name))
+    #
+    # threshold = [10.0, 40.0]
+    # tmp_df2['agg_inter'] = safety_interpolation(threshold, tmp_df2['aggressive'])
+    # threshold = [45.0, 55.0]
+    # tmp_df2['zig_inter'] = safety_interpolation(threshold, tmp_df2['zigzag'])
+    # tmp_df2['sum'] = tmp_df2['agg_inter'] + tmp_df2['zig_inter']
+    # ratios = np.arange(0.05, 1.00, 0.05)
+    # for ratio in ratios:
+    #     new_column_name = f'sum_{ratio:.2f}_{1-ratio:.2f}'
+    #     tmp_df2[new_column_name] = tmp_df2['agg_inter'] * ratio + tmp_df2['zig_inter'] * (1 - ratio)
+    # tmp_df2.to_csv(os.path.join(args.EDA_PATH, T_score_name), index=False)
