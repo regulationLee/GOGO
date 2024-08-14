@@ -113,7 +113,7 @@ def load_dataframe(args, eda_feat, tgt_user):
 
     def process_directory(dir_name):
         file_name = f"{eda_feat}{dir_name}_.csv"
-        dir_path = os.path.join(args.SAMPLE_PATH, str(dir_name))
+        dir_path = os.path.join(args.SORT_PATH, str(dir_name))
         result_file_path = os.path.join(dir_path, file_name)
 
         if os.path.exists(result_file_path):
@@ -154,8 +154,8 @@ def load_dataframe(args, eda_feat, tgt_user):
 
         return combined_df
 
-    dir_list = sorted([d for d in os.listdir(args.SAMPLE_PATH) if
-                       d in tgt_user and os.path.isdir(os.path.join(args.SAMPLE_PATH, d))])
+    dir_list = sorted([d for d in os.listdir(args.SORT_PATH) if
+                       d in tgt_user and os.path.isdir(os.path.join(args.SORT_PATH, d))])
 
     combined_dfs = Parallel(n_jobs=-1)(delayed(process_directory)(dir_name) for dir_name in dir_list)
 
@@ -167,7 +167,11 @@ if __name__ == "__main__":
     HEADER_LIST = set_header('202202')
     # tgt_list = ['cSenAccX', HEADER_LIST[5], HEADER_LIST[10], 'aggressive', 'zigzag']
     tgt_list = ['aggressive', 'zigzag']
-    user_group_list = [args.accidents, args.non_accidents]
+
+    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_202110_to_202212.csv')
+    user_group_list = tmp_df.iloc[:, 1:].sum()[tmp_df.iloc[:, 1:].sum() >= args.sample_period].index.tolist()
+
+    # user_group_list = [args.accidents, args.non_accidents]
 
     ##### Load dataframe and count #####
     for eda_feat in tgt_list:
@@ -189,7 +193,7 @@ if __name__ == "__main__":
             for user_id in tgt_user:
                 print(f"{eda_feat}_{user_id}")
                 tmp_file = f"{eda_feat}{user_id}_.csv"
-                tmp_df = pd.read_csv(os.path.join(args.SAMPLE_PATH, str(user_id), tmp_file))
+                tmp_df = pd.read_csv(os.path.join(args.SORT_PATH, str(user_id), tmp_file))
 
                 result_file_name = f'{eda_feat}_bin_ratio_{user_id}.csv'
 
@@ -212,12 +216,8 @@ if __name__ == "__main__":
                     if len(batch_df) < args.sample_period:
                         continue
 
-                    if eda_feat == 'zigzag':
-                        counts, bin_edges = np.histogram(batch_df[eda_feat], bins=300)
-                        cut_off = 100
-                    else:
-                        counts, bin_edges = np.histogram(batch_df[eda_feat], bins=300)
-                        cut_off = 100
+                    counts, bin_edges = np.histogram(batch_df[eda_feat], bins=300)
+                    cut_off = 100
 
                     filtered_counts = counts[counts > cut_off]
                     filtered_bin_edges = bin_edges[:-1][counts > cut_off]
@@ -237,7 +237,7 @@ if __name__ == "__main__":
                     plt.savefig(os.path.join(result_path, histogram_file_path))
                     plt.close()
 
-                preset_bin_ratio_file = os.path.join(args.SAMPLE_PATH, str(user_id), result_file_name)
+                preset_bin_ratio_file = os.path.join(args.SORT_PATH, str(user_id), result_file_name)
                 pd.DataFrame(result_df).to_csv(preset_bin_ratio_file)
 
             accumulated_bin_edges_file = os.path.join(result_path, f'{eda_feat}_accidents_bin_edges.csv')
@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
             for user_id in tgt_user:
                 score_idx_file = f'{eda_feat}_safety_score_{user_id}.csv'
-                score_idx_path = os.path.join(args.SAMPLE_PATH, str(user_id), score_idx_file)
+                score_idx_path = os.path.join(args.SORT_PATH, str(user_id), score_idx_file)
 
                 # if os.path.exists(score_idx_file):
                 #     score_df = pd.read_csv(score_idx_file)
@@ -272,7 +272,7 @@ if __name__ == "__main__":
                 #     score_df = pd.DataFrame(columns=bins)
 
                 cnt_file_name = f'{eda_feat}_bin_ratio_{user_id}.csv'
-                cnt_file_path = os.path.join(args.SAMPLE_PATH, str(user_id), cnt_file_name)
+                cnt_file_path = os.path.join(args.SORT_PATH, str(user_id), cnt_file_name)
                 cnt_df = pd.read_csv(cnt_file_path)
                 cnt_df.set_index(cnt_df.columns[0], inplace=True)
 
@@ -304,7 +304,7 @@ if __name__ == "__main__":
 
             for user_id in tgt_user:
                 score_idx_file = f'{eda_feat}_safety_score_{user_id}.csv'
-                score_idx_path = os.path.join(args.SAMPLE_PATH, str(user_id), score_idx_file)
+                score_idx_path = os.path.join(args.SORT_PATH, str(user_id), score_idx_file)
 
                 tmp_score_df = pd.read_csv(score_idx_path)
                 if len(tmp_score_df) <= tgt_time:
