@@ -28,20 +28,66 @@ def eval_stat(path, period=None):
 
     pd.set_option('future.no_silent_downcasting', True)
 
-    # ####### Parallel
-    #
+    ####### Parallel
+
+    if period:
+        print('Data Statistic Evaluation: Sorted {}'.format(str(period)))
+        result_file = 'data_distribution_' + str(period) + '.csv'
+        result_path = os.path.join(path, result_file)
+
+        tasks = []
+        for dir_name in dir_list:
+            path_name = os.path.join(path, dir_name, str(period))
+            files = glob.glob(os.path.join(path_name, '*.csv'))
+            if files:
+                files.sort()
+                tasks.extend((file_path, dir_name) for file_path in files)
+
+    else:
+        print('Data Statistic Evaluation')
+        result_file = f'data_distribution_from_202111_to_202407.csv'
+        result_path = os.path.join(path, result_file)
+
+        if os.path.exists(result_path):
+            return
+
+        tasks = []
+        for dir_name in dir_list:
+            sub_dir_list = os.listdir(path + dir_name)
+            sub_dir_list = [f for f in sub_dir_list if f != '.DS_Store' and os.path.isdir(os.path.join(path + dir_name, f))]
+            sub_dir_list.sort()
+            for sub_dir_name in sub_dir_list:
+                path_name = os.path.join(path, dir_name, sub_dir_name)
+                files = glob.glob(os.path.join(path_name, '*.csv'))
+                if files:
+                    files.sort()
+                    tasks.extend((file_path, dir_name) for file_path in files)
+
+
+    results = Parallel(n_jobs=-1)(delayed(process_file)(file_path, dir_name) for file_path, dir_name in tqdm(tasks))
+
+    for date, dir_name, count in results:
+        stat_df.at[date, dir_name] = count
+    ##########################
+
+
+    # # ####### if single #######
     # if period:
     #     print('Data Statistic Evaluation: Sorted {}'.format(str(period)))
     #     result_file = 'data_distribution_' + str(period) + '.csv'
     #     result_path = os.path.join(path, result_file)
     #
-    #     tasks = []
-    #     for dir_name in dir_list:
-    #         path_name = os.path.join(path, dir_name, str(period))
+    #     for dir_name in tqdm(dir_list):
+    #         path_name = os.path.join(path, dir_name)
+    #         path_name = os.path.join(path_name, str(period))
     #         files = glob.glob(os.path.join(path_name, '*.csv'))
-    #         if files:
+    #         if len(files) != 0:
     #             files.sort()
-    #             tasks.extend((file_path, dir_name) for file_path in files)
+    #             for file_path in files:
+    #                 print(file_path)
+    #                 tmp_df = pd.read_csv(file_path)
+    #                 date = tmp_df['cSenDate'].unique()[0]
+    #                 stat_df.at[date, dir_name] = tmp_df.shape[0]
     #
     # else:
     #     print('Data Statistic Evaluation')
@@ -51,66 +97,20 @@ def eval_stat(path, period=None):
     #     if os.path.exists(result_path):
     #         return
     #
-    #     tasks = []
-    #     for dir_name in dir_list:
+    #     for dir_name in tqdm(dir_list):
     #         sub_dir_list = os.listdir(path + dir_name)
     #         sub_dir_list = [f for f in sub_dir_list if f != '.DS_Store' and os.path.isdir(os.path.join(path + dir_name, f))]
     #         sub_dir_list.sort()
     #         for sub_dir_name in sub_dir_list:
     #             path_name = os.path.join(path, dir_name, sub_dir_name)
     #             files = glob.glob(os.path.join(path_name, '*.csv'))
-    #             if files:
+    #             if len(files) != 0:
     #                 files.sort()
-    #                 tasks.extend((file_path, dir_name) for file_path in files)
-    #
-    #
-    # results = Parallel(n_jobs=20)(delayed(process_file)(file_path, dir_name) for file_path, dir_name in tqdm(tasks))
-    #
-    # for date, dir_name, count in results:
-    #     stat_df.at[date, dir_name] = count
-    # ##########################
-
-
-    # ####### if single #######
-    if period:
-        print('Data Statistic Evaluation: Sorted {}'.format(str(period)))
-        result_file = 'data_distribution_' + str(period) + '.csv'
-        result_path = os.path.join(path, result_file)
-
-        for dir_name in tqdm(dir_list):
-            path_name = os.path.join(path, dir_name)
-            path_name = os.path.join(path_name, str(period))
-            files = glob.glob(os.path.join(path_name, '*.csv'))
-            if len(files) != 0:
-                files.sort()
-                for file_path in files:
-                    print(file_path)
-                    tmp_df = pd.read_csv(file_path)
-                    date = tmp_df['cSenDate'].unique()[0]
-                    stat_df.at[date, dir_name] = tmp_df.shape[0]
-
-    else:
-        print('Data Statistic Evaluation')
-        result_file = f'data_distribution_from_2022_to_202403.csv'
-        result_path = os.path.join(path, result_file)
-
-        if os.path.exists(result_path):
-            return
-
-        for dir_name in tqdm(dir_list):
-            sub_dir_list = os.listdir(path + dir_name)
-            sub_dir_list = [f for f in sub_dir_list if f != '.DS_Store' and os.path.isdir(os.path.join(path + dir_name, f))]
-            sub_dir_list.sort()
-            for sub_dir_name in sub_dir_list:
-                path_name = os.path.join(path, dir_name, sub_dir_name)
-                files = glob.glob(os.path.join(path_name, '*.csv'))
-                if len(files) != 0:
-                    files.sort()
-                    for file_path in files:
-                        print(file_path)
-                        tmp_df = pd.read_csv(file_path)
-                        date = tmp_df['cSenDate'].unique()[0]
-                        stat_df.at[date, dir_name] = tmp_df.shape[0]
+    #                 for file_path in files:
+    #                     print(file_path)
+    #                     tmp_df = pd.read_csv(file_path)
+    #                     date = tmp_df['cSenDate'].unique()[0]
+    #                     stat_df.at[date, dir_name] = tmp_df.shape[0]
 
 
 

@@ -34,8 +34,11 @@ def sort_rawdata(args, file_path_list):
             df.columns = set_header('202402')
         # df.columns = args.HEADER_LIST
         df = df.dropna(subset=['cSenID'])
-        df['cSenDate'] = df['cSenDate'].apply(lambda x: pd.to_datetime(x, format='%Y%m%d').strftime('%Y-%m-%d')
-                                              if '-' not in str(x) else x)
+        file_date = file_path[-12:-4]
+        file_date = datetime.strptime(file_date, '%Y%m%d').strftime('%Y-%m-%d')
+        df['cSenDate'] = file_date
+        # df['cSenDate'] = df['cSenDate'].apply(lambda x: pd.to_datetime(x, format='%Y%m%d').strftime('%Y-%m-%d')
+        #                                       if '-' not in str(x) else x)
         df['cSenID'] = df['cSenID'].astype(int).astype(str).str[-8:].astype(int)
         unique_num_id = df['cSenID'].unique()
 
@@ -52,8 +55,6 @@ def sort_rawdata(args, file_path_list):
             save_file_prefix = str(tmp_val)
 
             if len(tmp_id_df['cSenDate'].unique()) != 1:
-                file_date = file_path[-12:-4]
-                file_date = datetime.strptime(file_date, '%Y%m%d').strftime('%Y-%m-%d')
                 filtered_tmp_id_df = tmp_id_df[tmp_id_df['cSenDate'] == file_date]
                 save_file = save_file_prefix + '_' + str(file_date) + "_.csv"
                 if os.path.exists(os.path.join(save_path, save_file)):
@@ -78,7 +79,7 @@ def sort_rawdata(args, file_path_list):
     print('Sort data by ID')
 
     ### if parallel
-    Parallel(n_jobs=20)(
+    Parallel(n_jobs=-1)(
         delayed(process_file)(file_path, args) for file_path in tqdm(file_path_list)
     )
 
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     sort_rawdata(args, file_name_list)
     eval_stat(args.SORT_PATH)
 
-    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_2022_to_202403.csv')
+    tmp_df = pd.read_csv(args.SORT_PATH + 'data_distribution_from_202111_to_202407.csv')
     active_user_list = tmp_df.iloc[:, 1:].sum()[tmp_df.iloc[:, 1:].sum() >= args.sample_period].index.tolist()
 
 
